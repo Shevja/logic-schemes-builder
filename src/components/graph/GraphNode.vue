@@ -98,11 +98,11 @@ function endDrawLine(e) {
 </script>
 
 <template>
-    <g ref="nodeEl" :transform="`translate(${node.x}, ${node.y})`" class="shadow-sm active:cursor-grab"
-        @mousedown="startDrag">
+    <g ref="nodeEl" :transform="`translate(${node.x}, ${node.y})`" class="active:cursor-grab" @mousedown="startDrag">
 
-        <rect :width="node.width" :height="node.height" class="fill-stone-300 stroke-stone-600 " rx="10" />
-        <text x="10" y="25" class="fill-neutral-900">Узел {{ node.id }}</text>
+        <rect :width="node.width" :height="node.height"
+            class="transition-colors fill-gray-300 hover:fill-white stroke-gray-600" />
+        <text x="10" y="25" class="fill-gray-900">Узел {{ node.id }}</text>
 
         <circle :r="isOutputHovered ? 9 : 6" :cx="node.output.x" :cy="node.output.y"
             class="fill-sky-700 transition-all hover:cursor-pointer" @mouseenter="isOutputHovered = true"

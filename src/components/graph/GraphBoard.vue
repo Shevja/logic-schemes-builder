@@ -36,12 +36,15 @@ const edgeIdCounter = ref(0);
 const hoveredNode = ref(null)
 const currentDrawingEdge = ref(null)
 const disableSelect = ref(null)
+const clickedEntity = ref(null)
+const zoom = ref(1);
 
 const svgRootClass = computed(() => {
     return [
+        'grid',
         'w-screen',
         'h-screen',
-        'bg-zinc-700',
+        'bg-neutral-500',
         disableSelect.value ? 'select-none' : ''
     ]
 })
@@ -54,6 +57,10 @@ function createNode() {
         y: document.body.clientHeight / 2,
         ...defaultNode
     })
+}
+
+function captureEntity(entity) {
+    clickedEntity.value = entity
 }
 
 // DnD, перетаскивание
@@ -134,14 +141,16 @@ function endDrawEdgeHandler({ fromNodeId, toX, toY }) {
 
 // 
 function handleMouseMove(e) {
-    const { clientX, clientY } = e;
+    const svgRect = root.value.getBoundingClientRect();
+    const mouseX = (e.clientX - svgRect.left) / zoom.value;
+    const mouseY = (e.clientY - svgRect.top) / zoom.value;
 
     const node = nodeList.value.find(node => {
         if (
-            clientX >= node.x &&
-            clientY >= node.y &&
-            clientX <= node.x + node.width &&
-            clientY <= node.y + node.height
+            mouseX >= node.x &&
+            mouseY >= node.y &&
+            mouseX <= node.x + node.width &&
+            mouseY <= node.y + node.height
         ) {
             return true
         }
@@ -149,16 +158,32 @@ function handleMouseMove(e) {
 
     hoveredNode.value = node || null;
 }
+
+// zoom
+// function handleWheel(e) {
+//     const delta = e.deltaY > 0 ? -0.1 : 0.1;
+//     const newZoom = Math.min(Math.max(1, zoom.value + delta), 5);
+//     zoom.value = Math.round(newZoom * 10) / 10;
+// }
 </script>
 
 <template>
-    <svg ref="root" :class="svgRootClass" @mousemove="handleMouseMove">
-        <GraphEdge v-for="edge in edgeList" :key="edge.id" :edge="edge" />
+    <svg ref="root" :class="svgRootClass" @mousemove="handleMouseMove"
+        @wheel.prevent="handleWheel">
+        <GraphEdge v-for="edge in edgeList" :key="edge.id" :edge="edge" @click="() => captureEntity(node)" />
 
         <GraphNode v-for="node in nodeList" :key="node.id" :node="node" @onStartMove="startMoveNodeHandler"
             @onMove="moveNodeHandler" @onEndMove="endMoveNodeHandler" @onStartDrawEdge="startDrawEdgeHandler"
-            @onDrawEdge="drawEdgeHandler" @onEndDrawEdge="endDrawEdgeHandler" />
+            @onDrawEdge="drawEdgeHandler" @onEndDrawEdge="endDrawEdgeHandler" @click="() => captureEntity(node)" />
     </svg>
 
     <GraphTools @onCreate="createNode" />
 </template>
+
+<style scoped>
+.grid {
+    background-image: linear-gradient(to right, rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+    background-size: 100px 100px;
+}
+</style>

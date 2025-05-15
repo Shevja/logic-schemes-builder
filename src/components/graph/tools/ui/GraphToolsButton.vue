@@ -8,7 +8,8 @@ const props = defineProps({
 </script>
 
 <template>
-    <button class="flex gap-4 items-center py-1.5 px-4 transition-colors hover:bg-slate-700 hover:cursor-pointer active:bg-slate-900">
+    <button
+        class="flex gap-4 items-center py-1.5 px-5 transition-colors hover:bg-zinc-700 hover:cursor-pointer active:bg-stone-950">
         {{ value }}
     </button>
 </template>
