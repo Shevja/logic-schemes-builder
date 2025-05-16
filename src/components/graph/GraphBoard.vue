@@ -3,7 +3,8 @@ import { computed, ref } from "vue";
 import GraphTools from "./tools/GraphTools.vue";
 import GraphNode from "./GraphNode.vue";
 import GraphEdge from "./GraphEdge.vue";
-const root = ref(null);
+import GraphHint from "./tools/GraphHint.vue";
+const rootSvg = ref(null);
 
 const defaultNode = {
     width: 200,
@@ -24,6 +25,7 @@ const nodeList = ref([
         id: 0,
         x: 0,
         y: 0,
+        type: 'if',
         ...defaultNode
     },
 ]);
@@ -34,10 +36,10 @@ const nodeIdCounter = ref(1);
 const edgeIdCounter = ref(0);
 
 const hoveredNode = ref(null)
+const hoveredEntity = ref(null)
 const currentDrawingEdge = ref(null)
 const disableSelect = ref(null)
-const clickedEntity = ref(null)
-const zoom = ref(1);
+const showHelp = ref(true)
 
 const svgRootClass = computed(() => {
     return [
@@ -50,22 +52,24 @@ const svgRootClass = computed(() => {
 })
 
 // моковые
-function createNode() {
+function createNode(type) {
     nodeList.value.push({
         id: nodeIdCounter.value++,
         x: document.body.clientWidth / 2,
         y: document.body.clientHeight / 2,
+        type: type,
         ...defaultNode
     })
 }
 
 function captureEntity(entity) {
-    clickedEntity.value = entity
+    hoveredEntity.value = entity
 }
 
 // DnD, перетаскивание
 function startMoveNodeHandler() {
     disableSelect.value = true;
+    showHelp.value = false;
 }
 
 function moveNodeHandler({ id, x, y }) {
@@ -90,6 +94,7 @@ function moveNodeHandler({ id, x, y }) {
 
 function endMoveNodeHandler() {
     disableSelect.value = false;
+    showHelp.value = true;
 }
 
 // Создание ребра
@@ -141,9 +146,9 @@ function endDrawEdgeHandler({ fromNodeId, toX, toY }) {
 
 // 
 function handleMouseMove(e) {
-    const svgRect = root.value.getBoundingClientRect();
-    const mouseX = (e.clientX - svgRect.left) / zoom.value;
-    const mouseY = (e.clientY - svgRect.top) / zoom.value;
+    const svgRect = rootSvg.value.getBoundingClientRect();
+    const mouseX = e.clientX - svgRect.left;
+    const mouseY = e.clientY - svgRect.top;
 
     const node = nodeList.value.find(node => {
         if (
@@ -158,26 +163,21 @@ function handleMouseMove(e) {
 
     hoveredNode.value = node || null;
 }
-
-// zoom
-// function handleWheel(e) {
-//     const delta = e.deltaY > 0 ? -0.1 : 0.1;
-//     const newZoom = Math.min(Math.max(1, zoom.value + delta), 5);
-//     zoom.value = Math.round(newZoom * 10) / 10;
-// }
 </script>
 
 <template>
-    <svg ref="root" :class="svgRootClass" @mousemove="handleMouseMove"
-        @wheel.prevent="handleWheel">
-        <GraphEdge v-for="edge in edgeList" :key="edge.id" :edge="edge" @click="() => captureEntity(node)" />
+    <svg ref="rootSvg" :class="svgRootClass" @mousemove="handleMouseMove">
+        <GraphEdge v-for="edge in edgeList" :key="edge.id" :edge="edge" @mouseover="() => captureEntity(edge)"
+            @mouseleave="() => captureEntity(null)" />
 
         <GraphNode v-for="node in nodeList" :key="node.id" :node="node" @onStartMove="startMoveNodeHandler"
             @onMove="moveNodeHandler" @onEndMove="endMoveNodeHandler" @onStartDrawEdge="startDrawEdgeHandler"
-            @onDrawEdge="drawEdgeHandler" @onEndDrawEdge="endDrawEdgeHandler" @click="() => captureEntity(node)" />
+            @onDrawEdge="drawEdgeHandler" @onEndDrawEdge="endDrawEdgeHandler" @mouseover="() => captureEntity(node)"
+            @mouseleave="() => captureEntity(null)" />
     </svg>
 
     <GraphTools @onCreate="createNode" />
+    <GraphHint v-show="showHelp" :info="hoveredEntity" />
 </template>
 
 <style scoped>

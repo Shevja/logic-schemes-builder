@@ -6,6 +6,7 @@ const props = defineProps({
         type: Object,
         default: () => ({
             id: 0,
+            type: 'if',
             x: 0,
             y: 0,
             output: {
@@ -101,8 +102,13 @@ function endDrawLine(e) {
     <g ref="nodeEl" :transform="`translate(${node.x}, ${node.y})`" class="active:cursor-grab" @mousedown="startDrag">
 
         <rect :width="node.width" :height="node.height"
-            class="transition-colors fill-gray-300 hover:fill-white stroke-gray-600" />
-        <text x="10" y="25" class="fill-gray-900">Узел {{ node.id }}</text>
+            class="transition-colors fill-neutral-900 hover:fill-neutral-700 stroke-gray-600" rx="6" />
+
+        <text x="10" y="25" class="fill-white">{{ node.type }}</text>
+        <text :x="node.input.x+10" :y="node.input.y+4" class="fill-neutral-500 text-sm">input</text>
+        <text :x="node.output.x-60" :y="node.output.y+4" class="fill-neutral-500 text-sm">output</text>
+
+        <text x="8" y="140" class="fill-white text-xs">id:{{ node.id }}</text>
 
         <circle :r="isOutputHovered ? 9 : 6" :cx="node.output.x" :cy="node.output.y"
             class="fill-sky-700 transition-all hover:cursor-pointer" @mouseenter="isOutputHovered = true"
