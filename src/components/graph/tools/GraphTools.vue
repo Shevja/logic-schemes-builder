@@ -40,7 +40,7 @@ function handleCreate(type) {
 </script>
 
 <template>
-    <div class="fixed left-10 bottom-4 flex border border-stone-400 bg-neutral-900 text-white">
+    <div class="fixed left-4 bottom-4 flex border border-stone-400 bg-neutral-900 text-white">
         <BaseButtonSelect value="Создать" :options="createSelectOptions" class="border-r border-stone-600"
             @onSelect="handleCreate" />
         <BaseButton value="Удалить" class="border-r border-stone-600" />
