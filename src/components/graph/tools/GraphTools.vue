@@ -61,8 +61,8 @@ function handleStart() {
 </script>
 
 <template>
-    <div class="fixed left-4 bottom-4 flex gap-10 text-white">
-        <div class="flex rounded bg-neutral-900">
+    <div class="fixed flex-wrap left-4 bottom-4 flex gap-10 gap-y-1 text-white">
+        <div class="flex flex-wrap rounded bg-neutral-900">
             <BaseButtonSelect value="Создать" :options="createSelectOptions" class="border-r border-stone-600"
                 @onSelect="handleCreate" />
 
@@ -72,8 +72,13 @@ function handleStart() {
             <BaseButton value="Удалить" @click="() => handleDeleteEntity(activeEntity)" :disabled="!activeEntity" />
         </div>
 
-        <div class="flex rounded bg-neutral-900">
+        <div class="flex flex-wrap rounded bg-neutral-900">
             <BaseButton value="Запуск" variant="success" @click="handleStart" />
+        </div>
+
+        <div class="flex flex-wrap">
+            <BaseButton value="Загрузить схему" @click="handleLoadScheme" />
+            <BaseButton value="Сохранить схему" @click="handleSaveScheme" />
         </div>
     </div>
 </template>

@@ -9,7 +9,12 @@ import GraphModalEdit from "./tools/GraphModalEdit.vue";
 import GraphNodeStart from "./GraphNodeStart.vue";
 import GraphBoardNotification from "./tools/GraphBoardNotification.vue";
 
+
 const rootSvg = ref(null);
+
+
+//
+
 const modalEditVisible = ref(false)
 const boardNoitification = ref({})
 
@@ -19,6 +24,7 @@ const startNode = ref({
     y: 400,
     is: 'start',
     innerValue: null,
+    innerLogic: 'input',
     width: 100,
     height: 100,
     connected: {
@@ -389,40 +395,136 @@ function startSimulation() {
         inputValue: startNode.value.innerValue
     }]
 
+    // Для and и or
+    const pending = {}
+
     while (activeStreams.length) {
         const nextStreams = []
 
         for (const stream of activeStreams) {
-            const { currentNode, inputValue } = stream
+            const { currentNode, inputValue, variantValue } = stream
 
             // Исходящие из текущего узла ребра
             const outgoingEdges = edgeList.value.filter(edge => edge.fromNodeId === currentNode.id)
 
             // Если ребер нет, завершаем поток
             if (!outgoingEdges.length) {
-                boardNoitification.value = { type: 'info', text: `Поток завершён в узле #${currentNode.id}, значение: ${inputValue}` }
+                boardNoitification.value = {
+                    type: 'info',
+                    text: `Поток завершён в узле #${currentNode.id}, значение: ${inputValue}`
+                }
                 continue
             }
 
-            for (const edge of outgoingEdges) {
-                const nextNode = edge.toNode
+            // Если у узла нет внутренней логики
+            if (!currentNode.innerLogic) {
+                boardNoitification.value = {
+                    type: 'error',
+                    text: `У узла с id:${currentNode.id} нет внутренней логики`
+                };
+                continue;
+            }
 
-                // Если у узла нет внутренней логики то выдаем ошибку
-                if (!nextNode.innerLogic) {
-                    boardNoitification.value = { type: 'error', text: `У узла с id:${currentNode.id} нет внутренней логики` }
+            // Для if и elseif
+            if (currentNode.type === 'if' || currentNode.type === 'elsif') {
+                const exec = runLogic(currentNode.innerLogic, inputValue)
+
+                if (!exec.successfull) {
+                    boardNoitification.value = {
+                        type: 'error',
+                        text: `Ошибка логики в узле с id:${currentNode.id}: ${exec.error}`
+                    }
+
                     continue
                 }
 
-                const result = runLogic(inputValue, nextNode.innerLogic)
+                // Определяем ребро, по которому будем двигаться дальше
+                const port = exec.result ? 'output' : 'outputSecondary'
+                const selectedEdge = outgoingEdges.find(edge => edge.fromPointType === port)
 
-                if (!result.successfull) {
-                    boardNoitification.value = { type: 'error', text: `У узла с id:${currentNode.id} возникла ошибка во внутренней логике: ${result.error}` }
+                if (!selectedEdge) {
+                    boardNoitification.value = {
+                        type: 'error',
+                        text: `У узла c id:${currentNode.id} нет ребра для результата ${exec.result}`
+                    }
+
                     continue
                 }
 
                 nextStreams.push({
-                    currentNode: nextNode,
-                    inputValue: result.result
+                    currentNode: selectedEdge.toNode,
+                    inputValue: exec.result
+                });
+
+                continue
+            }
+
+            // Для and и or
+            if (currentNode.type === 'and' || currentNode.type === 'or') {
+                for (const edge of outgoingEdges) {
+                    const toNodeId = edge.toNode.id
+
+                    // Если узла нет в очереди ожидания, добавляем
+                    if (!pending[toNodeId]) {
+                        pending[toNodeId] = {
+                            inputValue: undefined,
+                            variantValue: undefined
+                        }
+                    }
+
+                    const exec = runLogic(currentNode.innerLogic, inputValue, variantValue)
+
+                    if (!exec.successfull) {
+                        boardNoitification.value = {
+                            type: 'error',
+                            text: `Ошибка логики в узле #${currentNode.id}: ${exec.error}`
+                        }
+                        continue
+                    }
+
+                    // Определяем в какой порт записать результат
+                    pending[toNodeId][edge.fromPointType + 'Value'] = exec.result
+
+                    // Проверяем что оба значения готовы,
+                    // если готовы - удаляем из pending
+                    const { pendingInputValue, pendingVariantValue } = pending[toNodeId]
+
+                    if (pendingInputValue !== undefined && pendingVariantValue !== undefined) {
+                        const finalExec = runLogic(currentNode.innerLogic, pendingInputValue, pendingVariantValue)
+
+                        if (finalExec.successfull) {
+                            nextStreams.push({
+                                currentNode: edge.toNode,
+                                inputValue: finalExec.result
+                            })
+                        } else {
+                            boardNoitification.value = {
+                                type: 'error',
+                                text: `Ошибка логики в узле #${currentNode.id}: ${finalExec.error}`
+                            }
+                        }
+
+                        delete pending[toNodeId]
+                    }
+                }
+                continue
+            }
+
+            // Для not и остальных узлов (одно входное значение)
+            const exec = runLogic(currentNode.innerLogic, inputValue);
+            if (!exec.successfull) {
+                boardNoitification.value = {
+                    type: 'error',
+                    text: `Ошибка логики в узле #${currentNode.id}: ${exec.error}`
+                }
+                continue
+            }
+
+            // пушим по всем исходящим ребрам
+            for (const edge of outgoingEdges) {
+                nextStreams.push({
+                    currentNode: edge.toNode,
+                    inputValue: exec.result
                 })
             }
         }
@@ -430,13 +532,24 @@ function startSimulation() {
         // Меняем пул потоков на новый
         activeStreams = nextStreams
     }
+
+    console.log('end')
 }
 
-function runLogic(inputValue, logic) {
+function runLogic(logic, inputValue, variantValue = undefined) {
     try {
-        const fn = new Function('input', `return ${logic}`)
-        const result = fn(inputValue)
-        return { successfull: true, result: result }
+        let resultFn;
+
+        if (variantValue) {
+            const fn = new Function('input', 'variant', `return ${logic}`)
+            resultFn = fn(inputValue, variantValue)
+        } else {
+            const fn = new Function('input', `return ${logic}`)
+            resultFn = fn(inputValue)
+        }
+            console.log(resultFn, inputValue, logic, 'fn')
+
+        return { successfull: true, result: resultFn }
     } catch (error) {
         // console.error(error)
         return { successfull: false, result: error }

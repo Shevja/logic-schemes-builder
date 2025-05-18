@@ -8,7 +8,7 @@ const props = defineProps({
 </script>
 
 <template>
-    <div v-if="entityInfo" class="fixed bottom-4 right-4 py-1 px-2 bg-slate-950 text-white rounded">
+    <div v-if="entityInfo" class="fixed top-4 right-4 py-1 px-2 bg-slate-950 text-white rounded">
         <ul>
             <li>
                 id: {{ entityInfo.id }}

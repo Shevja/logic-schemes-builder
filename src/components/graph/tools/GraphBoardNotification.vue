@@ -12,7 +12,7 @@ const props = defineProps({
 })
 
 const notificationClass = computed(() => {
-    const defaultClass = 'fixed top-2 right-2 rounded px-3 py-1 text-white'
+    const defaultClass = 'fixed top-0 left-[50%] -translate-x-[50%] rounded-b pt-2 px-3 py-1 text-white'
     let additionalClass = ''
 
     if (props.info.type === 'info') {
