@@ -6,6 +6,7 @@ const props = defineProps({
         type: Object,
         default: () => ({
             id: 0,
+            is: 'node',
             type: 'if',
             x: 0,
             y: 0,
@@ -19,6 +20,10 @@ const props = defineProps({
             },
         })
     },
+    active: {
+        type: Boolean,
+        default: false,
+    }
 })
 
 const emit = defineEmits(['onStartMove', 'onMove', 'onEndMove', 'onStartDrawEdge', 'onDrawEdge', 'onEndDrawEdge'])
@@ -104,11 +109,16 @@ function endDrawLine(e) {
     <g ref="nodeEl" :transform="`translate(${node.x}, ${node.y})`" class="active:cursor-grab" @mousedown="startDrag">
 
         <rect :width="node.width" :height="node.height"
-            class="transition-colors fill-neutral-900 hover:fill-neutral-700 stroke-gray-600" rx="6" />
+            :class="['transition-[fill,stroke]', 'fill-neutral-900', 'hover:fill-neutral-700', 'stroke-2', active ? 'stroke-white' : 'stroke-white/20']"
+            rx="6" />
 
         <text x="10" y="25" class="fill-white">{{ node.type }}</text>
 
         <text x="8" y="140" class="fill-white text-xs">id:{{ node.id }}</text>
+        <text v-if="node.type === 'if' || node.type === 'elseif'" x="110" y="140"
+            :class="[node.innerLogic ? 'fill-white' : 'fill-neutral-500', 'text-xs']">
+            {{ node.innerLogic ? 'есть логика' : 'нет логики' }}
+        </text>
 
         <!-- Точки вывода -->
 
@@ -123,10 +133,7 @@ function endDrawLine(e) {
                     class="fill-green-600 transition-all hover:cursor-pointer" @mouseenter="isOutputHovered = true"
                     @mouseleave="isOutputHovered = false" @mousedown.stop="startDrawLine">
                 </rect>
-                <text v-if="node.output.connected" x="-45" y="4" class="fill-white text-sm">
-                    true
-                </text>
-                <text v-else x="-45" y="4" class="fill-neutral-500 text-sm">
+                <text x="-45" y="4" :class="[node.connected.output ? 'fill-white' : 'fill-neutral-500', 'text-sm']">
                     true
                 </text>
             </g>
@@ -140,7 +147,8 @@ function endDrawLine(e) {
                     class="fill-red-500 transition-all hover:cursor-pointer" @mouseenter="isOutputHovered = true"
                     @mouseleave="isOutputHovered = false" @mousedown.stop="startDrawLine">
                 </rect>
-                <text x="-54" y="3" class="fill-neutral-500 text-sm">
+                <text x="-54" y="3"
+                    :class="[node.connected.outputSecondary ? 'fill-white' : 'fill-neutral-500', 'text-sm']">
                     false
                 </text>
             </g>
@@ -156,7 +164,7 @@ function endDrawLine(e) {
                 @mousedown.stop="startDrawLine">
             </rect>
 
-            <text x="-60" y="4" class="fill-neutral-500 text-sm">
+            <text x="-60" y="4" :class="[node.connected.output ? 'fill-white' : 'fill-neutral-500', 'text-sm']">
                 output
             </text>
         </g>
@@ -174,7 +182,8 @@ function endDrawLine(e) {
                     class="fill-sky-700 transition-all hover:cursor-pointer" @mouseenter="isInputHovered = true"
                     @mouseleave="isInputHovered = false" @mousedown.stop="">
                 </rect>
-                <text :x="10" :y="4" class="fill-neutral-500 text-sm">value</text>
+                <text :x="10" :y="4"
+                    :class="[node.connected.input ? 'fill-white' : 'fill-neutral-500', 'text-sm']">value</text>
             </g>
             <g data-node-connect-point="variant" :transform="`translate(${node.variant.x}, ${node.variant.y})`"
                 @mouseover="hoveredPointType = 'variant'" @mouseleave="hoveredPointType = null">
@@ -185,7 +194,8 @@ function endDrawLine(e) {
                     class="fill-sky-700 transition-all hover:cursor-pointer" @mouseenter="isInputHovered = true"
                     @mouseleave="isInputHovered = false" @mousedown.stop="">
                 </rect>
-                <text :x="10" :y="4" class="fill-neutral-500 text-sm">variant</text>
+                <text :x="10" :y="4"
+                    :class="[node.connected.variant ? 'fill-white' : 'fill-neutral-500', 'text-sm']">variant</text>
             </g>
         </template>
 
@@ -197,7 +207,8 @@ function endDrawLine(e) {
             <rect x="0" y="-15" width="5" height="30" rx="2" class="fill-sky-700 transition-all hover:cursor-pointer"
                 @mouseenter="isInputHovered = true" @mouseleave="isInputHovered = false" @mousedown.stop="">
             </rect>
-            <text v-if="node.input.connected" :x="10" :y="4" class="fill-neutral-500 text-sm">input</text>
+            <text :x="10" :y="4"
+                :class="[node.connected.input ? 'fill-white' : 'fill-neutral-500', 'text-sm']">input</text>
         </g>
     </g>
 </template>

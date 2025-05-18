@@ -5,31 +5,50 @@ import GraphNode from "./GraphNode.vue";
 import GraphEdge from "./GraphEdge.vue";
 import GraphMouseHint from "./tools/GraphMouseHint.vue";
 import GraphHint from "./tools/GraphHint.vue";
+import GraphModalEdit from "./tools/GraphModalEdit.vue";
+import GraphNodeStart from "./GraphNodeStart.vue";
+import GraphBoardNotification from "./tools/GraphBoardNotification.vue";
 
 const rootSvg = ref(null);
+const modalEditVisible = ref(false)
+const boardNoitification = ref({})
+
+const startNode = ref({
+    id: -1,
+    x: 250,
+    y: 400,
+    is: 'start',
+    innerValue: null,
+    width: 100,
+    height: 100,
+    connected: {
+        output: false,
+    },
+    output: {
+        x: 100,
+        y: 50
+    }
+})
 
 const defaultNode = {
+    is: 'node',
     width: 200,
     height: 150,
     output: {
         x: 200,
         y: 45,
-        connected: false,
     },
     outputSecondary: {
         x: 200,
         y: 95,
-        connected: false,
     },
     input: {
         x: 0,
         y: 45,
-        connected: false,
     },
     variant: {
         x: 0,
         y: 95,
-        connected: false,
     }
 }
 
@@ -40,6 +59,13 @@ const nodeList = ref([
         x: 0,
         y: 0,
         type: 'if',
+        connected: {
+            output: false,
+            outputSecondary: false,
+            input: false,
+            variant: false,
+        },
+        innerLogic: '',
         ...defaultNode
     },
 ]);
@@ -67,13 +93,35 @@ const svgRootClass = computed(() => {
     ]
 })
 
-// моковые
 function createNode(type) {
+    let innerLogic = '';
+
+    switch (type) {
+        case 'and':
+            innerLogic = 'input && variant'
+            break;
+        case 'or':
+            innerLogic = 'input || variant'
+            break;
+        case 'not':
+            innerLogic = '!input'
+            break;
+        default:
+            break;
+    }
+
     nodeList.value.push({
         id: nodeIdCounter.value++,
-        x: document.body.clientWidth / 2,
-        y: document.body.clientHeight / 2,
+        x: rootSvg.value.clientWidth / 2,
+        y: rootSvg.value.clientHeight / 2,
         type: type,
+        innerLogic: innerLogic,
+        connected: {
+            output: false,
+            outputSecondary: false,
+            input: false,
+            variant: false,
+        },
         ...defaultNode
     })
 }
@@ -93,7 +141,14 @@ function startMoveNodeHandler() {
 }
 
 function moveNodeHandler({ id, x, y }) {
-    const node = nodeList.value.find(node => node.id === id);
+    let node = null;
+
+    if (id === -1) {
+        node = startNode.value;
+    } else {
+        node = nodeList.value.find(node => node.id === id);
+    }
+
     const outputEdges = edgeList.value.filter(edge => edge.fromNodeId === id)
     const inputEdges = edgeList.value.filter(edge => edge.toNodeId === id)
 
@@ -128,10 +183,21 @@ function drawEdgeHandler({ fromNodeId, toX, toY }) {
 }
 
 function startDrawEdgeHandler({ fromNodeId, fromPointType, fromX, fromY, toX, toY }) {
+    let fromNode = null;
+
+    if (fromNodeId === -1) {
+        fromNode = startNode
+    } else {
+        fromNode = nodeList.value.find(node => node.id === fromNodeId)
+    }
+
     const newEdge = {
         id: edgeIdCounter.value++,
+        is: 'edge',
         fromNodeId: fromNodeId,
+        fromNode: fromNode,
         toNodeId: null,
+        toNode: null,
         fromPointType: fromPointType,
         toPointType: null,
         fromX: fromX,
@@ -209,6 +275,7 @@ function endDrawEdgeHandler({ fromNodeId, toX, toY }) {
         edgeIdCounter.value--
 
         currentDrawingEdge.value = edgeForSwitchToPoint;
+        hoveredNode.value.connected[edgeForSwitchToPoint.toPointType] = false;
     }
 
     // Если в момент отпускания кнопки мыши под ней есть какой-то узел,
@@ -217,25 +284,31 @@ function endDrawEdgeHandler({ fromNodeId, toX, toY }) {
         // Прикрепляем ребро
         currentDrawingEdge.value.toNodeId = hoveredNode.value.id
 
-        const pointType = hoveredConnectPointType.value
-        currentDrawingEdge.value.toPointType = pointType
+        const toPointType = hoveredConnectPointType.value
+        currentDrawingEdge.value.toPointType = toPointType
 
         // Координаты конечной точки
         // Левая верхняя точка узла + позиция точки коннекта (input или output)
-        currentDrawingEdge.value.toX = hoveredNode.value.x + hoveredNode.value[pointType].x
-        currentDrawingEdge.value.toY = hoveredNode.value.y + hoveredNode.value[pointType].y
+        currentDrawingEdge.value.toX = hoveredNode.value.x + hoveredNode.value[toPointType].x
+        currentDrawingEdge.value.toY = hoveredNode.value.y + hoveredNode.value[toPointType].y
 
-        // 
-        // hoveredNode.value[pointType].connected = true;
-        // console.log(hoveredNode.value.id)
-        const fromNode = nodeList.value.find(node => node.id === currentDrawingEdge.value.fromNodeId)
-        const fromPointType = currentDrawingEdge.value.fromPointType
-        fromNode[fromPointType].connected = true;
+        // Подсветка input/output
+        hoveredNode.value.connected[toPointType] = true;
 
         const toNode = nodeList.value.find(node => node.id === currentDrawingEdge.value.toNodeId)
-        const toPointType = currentDrawingEdge.value.toPointType
-        toNode[toPointType].connected = true;
-        console.log(toNode)
+
+        let fromNode = null;
+
+        if (currentDrawingEdge.value.fromNodeId === -1) {
+            fromNode = startNode.value
+        } else {
+            fromNode = nodeList.value.find(node => node.id === currentDrawingEdge.value.fromNodeId)
+        }
+
+        const fromPointType = currentDrawingEdge.value.fromPointType
+        fromNode.connected[fromPointType] = true;
+
+        currentDrawingEdge.value.toNode = toNode;
     } else {
         edgeList.value = edgeList.value.filter(edge => edge.id !== currentDrawingEdge.value.id)
         edgeIdCounter.value--
@@ -266,29 +339,149 @@ function handleMouseMove(e) {
 
     hoveredNode.value = node || null;
 }
+
+// tools
+function handleDeleteEntity(entity) {
+    if (entity.is === 'node') {
+        const sameNodeEdges = edgeList.value.filter(edge => edge.toNodeId === entity.id || edge.fromNodeId === entity.id)
+
+        sameNodeEdges.forEach(edge => {
+            edge.fromNode.connected[edge.fromPointType] = false;
+            edge.toNode.connected[edge.toPointType] = false;
+        })
+
+        edgeList.value = edgeList.value.filter(edge => edge.toNodeId !== entity.id && edge.fromNodeId !== entity.id)
+
+        nodeList.value = nodeList.value.filter(node => node.id !== entity.id)
+    } else {
+        entity.fromNode.connected[entity.fromPointType] = false;
+        entity.toNode.connected[entity.toPointType] = false;
+
+        edgeList.value = edgeList.value.filter(edge => edge.id !== entity.id)
+    }
+
+}
+
+function handleEditEntity(entity) {
+    const hasInnerLogic = entity.is === 'node' && (entity.type === 'if' || entity.type === 'elseif')
+
+    if (entity.is === 'start' || hasInnerLogic) {
+        modalEditVisible.value = true
+    }
+}
+
+function handleSaveLogic(nodeId, newInnerLogic) {
+    const node = nodeList.value.find(node => node.id === nodeId);
+    node.innerLogic = newInnerLogic;
+}
+
+function handleSaveValue(nodeId, newValue) {
+    startNode.value.innerValue = newValue
+}
+
+// Симуляция
+function startSimulation() {
+    if (!startNode.value.connected.output) return
+
+    // Инициализация для первой итерации
+    let activeStreams = [{
+        currentNode: startNode.value,
+        inputValue: startNode.value.innerValue
+    }]
+
+    while (activeStreams.length) {
+        const nextStreams = []
+
+        for (const stream of activeStreams) {
+            const { currentNode, inputValue } = stream
+
+            // Исходящие из текущего узла ребра
+            const outgoingEdges = edgeList.value.filter(edge => edge.fromNodeId === currentNode.id)
+
+            // Если ребер нет, завершаем поток
+            if (!outgoingEdges.length) {
+                boardNoitification.value = { type: 'info', text: `Поток завершён в узле #${currentNode.id}, значение: ${inputValue}` }
+                continue
+            }
+
+            for (const edge of outgoingEdges) {
+                const nextNode = edge.toNode
+
+                // Если у узла нет внутренней логики то выдаем ошибку
+                if (!nextNode.innerLogic) {
+                    boardNoitification.value = { type: 'error', text: `У узла с id:${currentNode.id} нет внутренней логики` }
+                    continue
+                }
+
+                const result = runLogic(inputValue, nextNode.innerLogic)
+
+                if (!result.successfull) {
+                    boardNoitification.value = { type: 'error', text: `У узла с id:${currentNode.id} возникла ошибка во внутренней логике: ${result.error}` }
+                    continue
+                }
+
+                nextStreams.push({
+                    currentNode: nextNode,
+                    inputValue: result.result
+                })
+            }
+        }
+
+        // Меняем пул потоков на новый
+        activeStreams = nextStreams
+    }
+}
+
+function runLogic(inputValue, logic) {
+    try {
+        const fn = new Function('input', `return ${logic}`)
+        const result = fn(inputValue)
+        return { successfull: true, result: result }
+    } catch (error) {
+        // console.error(error)
+        return { successfull: false, result: error }
+    }
+}
 </script>
 
 <template>
-    <svg ref="rootSvg" :class="svgRootClass" @mousemove="handleMouseMove">
-        <GraphEdge v-for="edge in edgeList" :key="edge.id" :edge="edge" @mouseover="() => captureHoveredEntity(edge)"
-            @mouseleave="() => captureHoveredEntity(null)" @click="() => captureClickedEntity(edge)" />
+    <div class="overflow-hidden">
+        <svg ref="rootSvg" :class="svgRootClass" @mousemove="handleMouseMove" @click="() => captureClickedEntity(null)">
+            <GraphEdge v-for="edge in edgeList" :key="edge.id" :edge="edge"
+                :active="clickedEntity && clickedEntity.is === 'edge' && clickedEntity.id === edge.id"
+                @mouseover="() => captureHoveredEntity(edge)" @mouseleave="() => captureHoveredEntity(null)"
+                @click.stop="() => captureClickedEntity(edge)" />
 
-        <GraphNode v-for="node in nodeList" :key="node.id" :node="node" @onStartMove="startMoveNodeHandler"
-            @onMove="moveNodeHandler" @onEndMove="endMoveNodeHandler" @onStartDrawEdge="startDrawEdgeHandler"
-            @onDrawEdge="drawEdgeHandler" @onEndDrawEdge="endDrawEdgeHandler"
-            @mouseover="() => captureHoveredEntity(node)" @mouseleave="() => captureHoveredEntity(null)"
-            @click="() => captureClickedEntity(node)" />
-    </svg>
+            <GraphNode v-for="node in nodeList" :key="node.id" :node="node"
+                :active="clickedEntity && clickedEntity.is === 'node' && clickedEntity.id === node.id"
+                @onStartMove="startMoveNodeHandler" @onMove="moveNodeHandler" @onEndMove="endMoveNodeHandler"
+                @onStartDrawEdge="startDrawEdgeHandler" @onDrawEdge="drawEdgeHandler"
+                @onEndDrawEdge="endDrawEdgeHandler" @mouseover="() => captureHoveredEntity(node)"
+                @mouseleave="() => captureHoveredEntity(null)" @click.stop="() => captureClickedEntity(node)"
+                @dblclick="() => handleEditEntity(node)" />
 
-    <GraphTools @onCreate="createNode" />
-    <GraphMouseHint v-show="showHelp" :info="hoveredEntity" />
-    <GraphHint :entityInfo="clickedEntity" />
+            <GraphNodeStart :node="startNode" @onStartMove="startMoveNodeHandler" @onMove="moveNodeHandler"
+                @onEndMove="endMoveNodeHandler" @onStartDrawEdge="startDrawEdgeHandler" @onDrawEdge="drawEdgeHandler"
+                @onEndDrawEdge="endDrawEdgeHandler" @mouseover="() => captureHoveredEntity(startNode)"
+                @mouseleave="() => captureHoveredEntity(null)" @click.stop="() => captureClickedEntity(startNode)"
+                @dblclick="() => handleEditEntity(startNode)" />
+        </svg>
+
+        <GraphTools :activeEntity="clickedEntity" @onCreate="createNode" @onEditEntity="handleEditEntity"
+            @onDeleteEntity="handleDeleteEntity" @onStartSimulation="startSimulation" />
+        <GraphMouseHint v-show="showHelp" :info="hoveredEntity" />
+        <GraphHint :entityInfo="clickedEntity" />
+        <GraphModalEdit v-model:visible="modalEditVisible" :entity="clickedEntity" @onSaveLogic="handleSaveLogic"
+            @onSaveValue="handleSaveValue" />
+
+        <GraphBoardNotification :info="boardNoitification" />
+    </div>
 </template>
 
 <style scoped>
 .grid {
     background-image: linear-gradient(to right, rgba(255, 255, 255, 0.1) 1px, transparent 1px),
         linear-gradient(to bottom, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
-    background-size: 100px 100px;
+    background-size: 50px 50px;
 }
 </style>

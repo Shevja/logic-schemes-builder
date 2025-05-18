@@ -1,12 +1,17 @@
 <script setup>
-import { ref } from 'vue';
 import BaseButtonSelect from '../../ui/BaseButtonSelect.vue';
 import BaseButton from '../../ui/BaseButton.vue';
+import { computed } from 'vue';
 
-const emit = defineEmits(['onCreate'])
+const props = defineProps({
+    activeEntity: {
+        type: Object,
+        default: () => { }
+    }
+})
+const emit = defineEmits(['onCreate', 'onDeleteEntity', 'onEditEntity', 'onStartSimulation'])
 
-const createModalVisible = ref(false);
-const createSelectOptions = ref([
+const createSelectOptions = [
     {
         id: 0,
         text: 'Блок if',
@@ -32,18 +37,43 @@ const createSelectOptions = ref([
         text: 'Блок elseif',
         value: 'elseif'
     },
-])
+]
+
+const notEditableEntity = computed(() => {
+    return !props.activeEntity || props.activeEntity.is === 'edge' || (props.activeEntity.type !== 'if' && props.activeEntity.type !== 'elseif')
+})
 
 function handleCreate(type) {
     emit('onCreate', type);
 }
+
+function handleDeleteEntity(entity) {
+    emit('onDeleteEntity', entity)
+}
+
+function handlerEditEntity(entity) {
+    emit('onEditEntity', entity)
+}
+
+function handleStart() {
+    emit('onStartSimulation')
+}
 </script>
 
 <template>
-    <div class="fixed left-4 bottom-4 flex border border-stone-400 bg-neutral-900 text-white">
-        <BaseButtonSelect value="Создать" :options="createSelectOptions" class="border-r border-stone-600"
-            @onSelect="handleCreate" />
-        <BaseButton value="Удалить" class="border-r border-stone-600" />
-        <BaseButton value="Редактировать" />
+    <div class="fixed left-4 bottom-4 flex gap-10 text-white">
+        <div class="flex rounded bg-neutral-900">
+            <BaseButtonSelect value="Создать" :options="createSelectOptions" class="border-r border-stone-600"
+                @onSelect="handleCreate" />
+
+            <BaseButton value="Изменить" class="border-r border-stone-600" :disabled="notEditableEntity"
+                @click="() => handlerEditEntity(activeEntity)" />
+
+            <BaseButton value="Удалить" @click="() => handleDeleteEntity(activeEntity)" :disabled="!activeEntity" />
+        </div>
+
+        <div class="flex rounded bg-neutral-900">
+            <BaseButton value="Запуск" variant="success" @click="handleStart" />
+        </div>
     </div>
 </template>
