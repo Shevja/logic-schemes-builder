@@ -1,9 +1,9 @@
 <script setup>
-import GraphBoard from './components/graph/GraphBoard.vue'
+import GraphBoard from "./components/graph/GraphBoard.vue";
 </script>
 
 <template>
-	<GraphBoard />
+    <GraphBoard />
 </template>
 
 <style scoped></style>

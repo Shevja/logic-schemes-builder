@@ -9,7 +9,7 @@ const props = defineProps({
         default: () => { }
     }
 })
-const emit = defineEmits(['onCreate', 'onDeleteEntity', 'onEditEntity', 'onStartSimulation'])
+const emit = defineEmits(['onCreate', 'onDeleteEntity', 'onEditEntity', 'onStartSimulation', 'onSaveScheme', 'onLoadScheme'])
 
 const createSelectOptions = [
     {
@@ -58,6 +58,15 @@ function handlerEditEntity(entity) {
 function handleStart() {
     emit('onStartSimulation')
 }
+
+function handleSaveScheme() {
+    emit('onSaveScheme')
+}
+
+function handleLoadScheme() {
+    emit('onLoadScheme')
+}
+
 </script>
 
 <template>
@@ -69,7 +78,8 @@ function handleStart() {
             <BaseButton value="Изменить" class="border-r border-stone-600" :disabled="notEditableEntity"
                 @click="() => handlerEditEntity(activeEntity)" />
 
-            <BaseButton value="Удалить" @click="() => handleDeleteEntity(activeEntity)" :disabled="!activeEntity" />
+            <BaseButton value="Удалить" @click="() => handleDeleteEntity(activeEntity)"
+                :disabled="!activeEntity || activeEntity.is === 'start'" />
         </div>
 
         <div class="flex flex-wrap rounded bg-neutral-900">
